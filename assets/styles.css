@@ -1,0 +1,48 @@
+/* Estilos personalizados para la aplicación RBAC */
+
+body {
+    font-family: 'Arial', sans-serif;
+}
+
+
+.sidebar .nav-link {
+    font-weight: 500;
+    color: #333;
+    border-radius: 10px;
+}
+
+.sidebar .nav-link.active {
+    background-color: #007bff;
+    color: #fff;
+    border-radius: 10px;
+}
+
+.table {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.modal-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.modal-footer {
+    border-top: 1px solid #dee2e6;
+}
+.sidebar {
+    height: 100vh; /* Altura total de la ventana */
+    position: fixed; /* Fija la barra lateral */
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    padding-top: 20px;
+    border-right: 1px solid #ddd;
+}
+
+main {
+    margin-left: 16.7%; /* Mueve el contenido principal a la derecha para que no quede tapado */
+    padding: 20px;
+}
+
