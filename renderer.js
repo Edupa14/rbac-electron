@@ -19,6 +19,77 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('nav-users').addEventListener('click', loadUsers);
     document.getElementById('nav-roles').addEventListener('click', loadRoles);
     document.getElementById('nav-permissions').addEventListener('click', loadPermissions);
+//------------------LOGIN---------------------------
+
+    const loginSection = document.getElementById('login-section');
+    const dashboardSection = document.getElementById('dashboard-section');
+    const loginForm = document.getElementById('loginForm');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const loginError = document.getElementById('login-error');
+
+    // Verificar si el usuario ya está autenticado
+    if (sessionStorage.getItem('authenticatedUser')) {
+        showDashboard();
+    } else {
+        showLogin();
+    }
+
+    // Evento de envío del formulario de login
+    loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const passwordHash = btoa(password); // Hash simple para ejemplo
+
+        db.get(
+            `SELECT * FROM users WHERE email = ? AND password_hash = ?`,
+            [email, passwordHash],
+            (err, row) => {
+                if (err) {
+                    console.error('Error al buscar usuario:', err.message);
+                    loginError.textContent = 'Error en el sistema. Intente nuevamente.';
+                    loginError.style.display = 'block';
+                    return;
+                }
+
+                if (row) {
+                    // Guardar la sesión del usuario
+                    sessionStorage.setItem('authenticatedUser', email);
+                    showDashboard();
+                } else {
+                    // Mostrar mensaje de error si las credenciales son incorrectas
+                    loginError.textContent = 'Correo o contraseña incorrectos.';
+                    loginError.style.display = 'block';
+                }
+            }
+        );
+    });
+
+    // Evento de cierre de sesión
+    logoutBtn.addEventListener('click', () => {
+        sessionStorage.removeItem('authenticatedUser');
+        showLogin();
+    });
+
+    // Función para mostrar el login
+    function showLogin() {
+        loginSection.classList.remove('d-none');
+        dashboardSection.classList.add('d-none');
+    }
+
+    // Función para mostrar el dashboard
+    function showDashboard() {
+        loginSection.classList.add('d-none');
+        dashboardSection.classList.remove('d-none');
+        loadDashboard();
+    }
+
+    // Función para cargar el contenido del dashboard
+    function loadDashboard() {
+        console.log('Cargando el dashboard...');
+        // Aquí puedes llamar a loadUsers(), loadRoles(), loadPermissions(), etc.
+        loadUsers();
+    }
 
 
 //------------------USERS---------------------------
@@ -997,7 +1068,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    loadUsers()
 });
 
 

@@ -46,3 +46,19 @@ main {
     padding: 20px;
 }
 
+/* assets/styles.css */
+#login-section {
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #f8f9fa;
+}
+
+#loginForm {
+    width: 100%;
+}
+
+#dashboard-section {
+    margin-top: 20px;
+}
