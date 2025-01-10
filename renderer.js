@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const passwordHash = btoa(password); // Hash simple para ejemplo
 
         db.get(
-            `SELECT * FROM users WHERE email = ? AND password_hash = ?`,
+            `SELECT user_id FROM users WHERE email = ? AND password_hash = ?`,
             [email, passwordHash],
             (err, row) => {
                 if (err) {
@@ -53,9 +53,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 if (row) {
-                    // Guardar la sesión del usuario
+                    // Usuario autenticado correctamente
                     sessionStorage.setItem('authenticatedUser', email);
-                    showDashboard();
+
+                    fetchUserPermissions(email); // Cargar permisos antes de mostrar el contenido
+                    showDashboard(); // Mostrar el dashboard
                 } else {
                     // Mostrar mensaje de error si las credenciales son incorrectas
                     loginError.textContent = 'Correo o contraseña incorrectos.';
@@ -65,10 +67,13 @@ document.addEventListener('DOMContentLoaded', () => {
         );
     });
 
+
     // Evento de cierre de sesión
     logoutBtn.addEventListener('click', () => {
         sessionStorage.removeItem('authenticatedUser');
-        showLogin();
+        sessionStorage.removeItem('permissionsUser');
+        location.reload(); // Recargar la página al cerrar sesión
+
     });
 
     // Función para mostrar el login
@@ -81,15 +86,53 @@ document.addEventListener('DOMContentLoaded', () => {
     function showDashboard() {
         loginSection.classList.add('d-none');
         dashboardSection.classList.remove('d-none');
-        loadDashboard();
     }
+
 
     // Función para cargar el contenido del dashboard
     function loadDashboard() {
         console.log('Cargando el dashboard...');
         // Aquí puedes llamar a loadUsers(), loadRoles(), loadPermissions(), etc.
-        loadUsers();
+        //loadUsers();
     }
+
+//------------------VALIDATE PERMISSIONS---------------------------
+    let userPermissions = []; // Aquí se almacenarán los permisos del usuario
+
+    function fetchUserPermissions(userId) {
+        db.all(
+            `SELECT p.menu_name
+             FROM permissions p
+                      JOIN role_permissions rp ON rp.permission_id = p.permission_id
+                      JOIN user_roles ur ON ur.role_id = rp.role_id
+                      JOIN users u ON u.user_id = ur.user_id
+             WHERE u.email = ?`,
+            [userId],
+            (err, rows) => {
+                if (err) {
+                    console.error('Error al obtener permisos del usuario:', err.message);
+                    return;
+                }
+                userPermissions = rows.map(row => row.menu_name);
+                sessionStorage.setItem('permissionsUser',userPermissions);
+
+                console.log('Permisos cargados:', userPermissions);
+                renderUIWithPermissions(); // Renderizar la UI según los permisos
+            }
+        );
+    }
+
+
+    function renderUIWithPermissions() {
+        document.querySelectorAll('[data-permission]').forEach(element => {
+            const permissionCode = element.getAttribute('data-permission');
+            if (!userPermissions.includes(permissionCode)) {
+                element.style.display = 'none'; // Ocultar el elemento si no tiene permiso
+            }
+        });
+    }
+
+
 
 
 //------------------USERS---------------------------
@@ -100,7 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadUsers() {
         contentArea.innerHTML = `
             <h2>Gestión de Usuarios</h2>
-            <button class="btn btn-primary" id="add-user">Añadir Usuario</button>
+            <button class="btn btn-primary" id="add-user" data-permission="add-user">Añadir Usuario</button>
             <table class="table mt-3">
                 <thead>
                     <tr>
@@ -115,38 +158,36 @@ document.addEventListener('DOMContentLoaded', () => {
             </table>
 
             <!-- Modal de formulario para agregar/editar usuario -->
-            <div class="modal fade" id="userModal" tabindex="-1" aria-labelledby="userModalLabel" aria-hidden="true">
+            <!-- Modal de formulario para añadir usuario -->
+            <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="userModalLabel">Añadir Usuario</h5>
+                            <h5 class="modal-title" id="addUserModalLabel">Añadir Usuario</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            <form id="userForm">
+                            <form id="addUserForm">
                                 <div class="mb-3">
-                                    <label for="username" class="form-label">Username</label>
-                                    <input type="text" class="form-control" id="username" required>
+                                    <label for="addUsername" class="form-label">Username</label>
+                                    <input type="text" class="form-control" id="addUsername" required>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="email" class="form-label">Email</label>
-                                    <input type="email" class="form-control" id="email" required>
-                                        <div id="emailError" class="text-danger mt-1" style="display: none;"></div>
-
+                                    <label for="addEmail" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="addEmail" required>
+                                    <div id="addEmailError" class="text-danger mt-1" style="display: none;"></div>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="roles" class="form-label">Roles</label>
-                                    <select multiple class="form-select" id="roles"></select>
+                                    <label for="addRoles" class="form-label">Roles</label>
+                                    <select multiple class="form-select" id="addRoles"></select>
                                 </div>
-                                <div id="passwordSection">
-                                    <div class="mb-3">
-                                        <label for="password" class="form-label">Contraseña</label>
-                                        <input type="password" class="form-control" id="password" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="confirmPassword" class="form-label">Confirmar Contraseña</label>
-                                        <input type="password" class="form-control" id="confirmPassword" required>
-                                    </div>
+                                <div class="mb-3">
+                                    <label for="addPassword" class="form-label">Contraseña</label>
+                                    <input type="password" class="form-control" id="addPassword" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="addConfirmPassword" class="form-label">Confirmar Contraseña</label>
+                                    <input type="password" class="form-control" id="addConfirmPassword" required>
                                 </div>
                                 <button type="submit" class="btn btn-primary">Guardar</button>
                             </form>
@@ -154,6 +195,36 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
             </div>
+            
+            <!-- Modal de formulario para editar usuario -->
+            <div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="editUserModalLabel">Editar Usuario</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="editUserForm">
+                                <div class="mb-3">
+                                    <label for="editUsername" class="form-label">Username</label>
+                                    <input type="text" class="form-control" id="editUsername" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="editEmail" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="editEmail" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="editRoles" class="form-label">Roles</label>
+                                    <select multiple class="form-select" id="editRoles"></select>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Guardar</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
 
             <!-- Modal de confirmación para eliminar usuario -->
             <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteLabel" aria-hidden="true">
@@ -200,42 +271,44 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
-        document.getElementById('userForm').addEventListener('submit', (e) => {
-            e.preventDefault(); // Prevenir el comportamiento por defecto del formulario
+        document.getElementById('addUserForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = document.getElementById('addUsername').value;
+            const email = document.getElementById('addEmail').value;
+            const roles = Array.from(document.getElementById('addRoles').selectedOptions).map(option => option.value);
+            const password = document.getElementById('addPassword').value;
+            const confirmPassword = document.getElementById('addConfirmPassword').value;
 
-            const username = document.getElementById('username').value;
-            const email = document.getElementById('email').value;
-            const selectedRoles = Array.from(document.getElementById('roles').selectedOptions).map(option => option.value);
-            const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-
-            if (!currentEditId && password !== confirmPassword) {
+            if (password !== confirmPassword) {
                 alert('Las contraseñas no coinciden');
                 return;
             }
 
-            if (currentEditId) {
-                updateUser(currentEditId, username, email, selectedRoles);
-            } else {
-                addUser(username, email, password, selectedRoles);
-            }
+            addUser(username, email, password, roles);
+        });
+
+        document.getElementById('editUserForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = document.getElementById('editUsername').value;
+            const email = document.getElementById('editEmail').value;
+            const roles = Array.from(document.getElementById('editRoles').selectedOptions).map(option => option.value);
+
+            updateUser(currentEditId, username, email, roles);
         });
 
         document.getElementById('add-user').addEventListener('click', () => {
             currentEditId = null;
-            document.getElementById('userForm').reset();
-            document.getElementById('userModalLabel').textContent = 'Añadir Usuario';
-            document.getElementById('passwordSection').style.display = 'block';
-            loadRolesForUsers();
-            new bootstrap.Modal(document.getElementById('userModal')).show();
-        });
+            document.getElementById('addUserForm').reset();
 
+            loadRolesForUsers('addRoles');
+            new bootstrap.Modal(document.getElementById('addUserModal')).show();
+        });
         fetchUsers();
     }
 
     window.addUser = function (username, email, password, roles) {
         const passwordHash = btoa(password); // Hash simple para ejemplo (usar bcrypt en producción)
-        const modal = bootstrap.Modal.getInstance(document.getElementById('userModal'));
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addUserModal'));
 
         db.run(
             `INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)`,
@@ -278,7 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateUser(id, username, email, roles) {
-        const modal = bootstrap.Modal.getInstance(document.getElementById('userModal'));
+        const modal = bootstrap.Modal.getInstance(document.getElementById('editUserModal'));
 
         db.run(
             `UPDATE users
@@ -309,25 +382,23 @@ document.addEventListener('DOMContentLoaded', () => {
         );
     }
 
-    function loadRolesForUsers(selectedRoles = []) {
-        db.all(`SELECT *
-                FROM roles`, [], (err, rows) => {
+    function loadRolesForUsers(selectId) {
+        db.all(`SELECT * FROM roles`, [], (err, rows) => {
             if (err) {
                 return console.error('Error al obtener roles:', err.message);
             }
-            const rolesSelect = document.getElementById('roles');
+            const rolesSelect = document.getElementById(selectId);
             rolesSelect.innerHTML = '';
             rows.forEach((role) => {
                 const option = document.createElement('option');
                 option.value = role.role_id;
                 option.textContent = role.role_name;
-                if (selectedRoles.includes(role.role_id)) {
-                    option.selected = true;
-                }
                 rolesSelect.appendChild(option);
             });
         });
     }
+
+
 
     function fetchUsers() {
         db.all(`SELECT u.user_id, u.username, u.email, GROUP_CONCAT(r.role_name) AS roles
@@ -348,9 +419,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td>${user.email}</td>
                     <td>${user.roles || 'Sin roles'}</td>
                     <td>
-                        <button class="btn btn-sm btn-warning edit-user" data-id="${user.user_id}" data-username="${user.username}" data-email="${user.email}">Editar</button>
-                        <button class="btn btn-sm btn-info update-password" data-id="${user.user_id}">Actualizar Contraseña</button>
-                        <button class="btn btn-sm btn-danger delete-user" data-id="${user.user_id}">Eliminar</button>
+                        <button class="btn btn-sm btn-warning edit-user" data-id="${user.user_id}" data-username="${user.username}" data-email="${user.email}" data-permission="edit-user">Editar</button>
+                        <button class="btn btn-sm btn-info update-password" data-id="${user.user_id}" data-permission="update-password">Actualizar Contraseña</button>
+                        <button class="btn btn-sm btn-danger delete-user" data-id="${user.user_id}" data-permission="delete-user">Eliminar</button>
                     </td>
                 `;
                 userList.appendChild(row);
@@ -378,18 +449,31 @@ document.addEventListener('DOMContentLoaded', () => {
                     confirmDeleteUser(id);
                 });
             });
+            applyPermissions();
         });
+
     }
 
     function editUser(id, username, email) {
         currentEditId = id;
-        document.getElementById('username').value = username;
-        document.getElementById('email').value = email;
-        document.getElementById('passwordSection').style.display = 'none';
-        loadUserRoles(id);
-        document.getElementById('userModalLabel').textContent = 'Editar Usuario';
-        new bootstrap.Modal(document.getElementById('userModal')).show();
+        document.getElementById('editUsername').value = username;
+        document.getElementById('editEmail').value = email;
+        loadRolesForUsers('editRoles');
+
+        // Cargar roles asignados al usuario
+        db.all(`SELECT role_id FROM user_roles WHERE user_id = ?`, [id], (err, rows) => {
+            if (err) {
+                return console.error('Error al obtener roles del usuario:', err.message);
+            }
+            const assignedRoles = rows.map(row => row.role_id.toString());
+            document.querySelectorAll('#editRoles option').forEach(option => {
+                option.selected = assignedRoles.includes(option.value);
+            });
+        });
+
+        new bootstrap.Modal(document.getElementById('editUserModal')).show();
     }
+
 
     function loadUserRoles(userId) {
         db.all(`SELECT role_id
@@ -476,7 +560,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadRoles() {
         contentArea.innerHTML = `
             <h2>Gestión de Roles</h2>
-            <button class="btn btn-primary" id="add-role">Añadir Rol</button>
+            <button class="btn btn-primary" id="add-role" data-permission="add-role">Añadir Rol</button>
             <table class="table mt-3">
                 <thead>
                     <tr>
@@ -698,8 +782,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td>${role.role_id}</td>
                         <td>${role.role_name}</td>
                         <td>
-                            <button class="btn btn-sm btn-warning edit-role" data-id="${role.role_id}" data-name="${role.role_name}">Editar</button>
-                            <button class="btn btn-sm btn-danger delete-role" data-id="${role.role_id}">Eliminar</button>
+                            <button class="btn btn-sm btn-warning edit-role" data-id="${role.role_id}" data-name="${role.role_name}" data-permission="edit-role">Editar</button>
+                            <button class="btn btn-sm btn-danger delete-role" data-id="${role.role_id}" data-permission="delete-role">Eliminar</button>
                         </td>
                     </tr>
                 `;
@@ -719,6 +803,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     confirmDeleteRole(id);
                 });
             });
+            applyPermissions();
         });
     }
 
@@ -802,7 +887,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadPermissions() {
         contentArea.innerHTML = `
       <h2>Gestión de Permisos</h2>
-      <button class="btn btn-primary" id="add-permission">Añadir Permiso</button>
+      <button class="btn btn-primary" id="add-permission" data-permission="add-permission">Añadir Permiso</button>
       <table class="table mt-3">
         <thead>
           <tr>
@@ -866,7 +951,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal
 ">Cancelar</button>
-              <button type="button" class="btn btn-danger" id="confirmDeletePermissionBtn">Eliminar</button>
+              <button type="button" class="btn btn-danger" id="confirmDeletePermissionBtn" >Eliminar</button>
             </div>
           </div>
         </div>
@@ -913,7 +998,6 @@ document.addEventListener('DOMContentLoaded', () => {
             rows.forEach((permission) => {
                 // Excluir el permiso actual de las opciones de parent_id
                 if (permission.permission_id != currentId) {
-                    console.log(permission.permission_id, currentId)
                     parentIdSelect.innerHTML += `<option value="${permission.permission_id}">${permission.permission_name}</option>`;
                 }
             });
@@ -991,8 +1075,8 @@ document.addEventListener('DOMContentLoaded', () => {
                       data-name="${permission.permission_name}" 
                       data-description="${permission.description}" 
                       data-menu="${permission.menu_name}" 
-                      data-parent="${permission.parent_id || ''}">Editar</button>
-              <button class="btn btn-sm btn-danger delete-permission" data-id="${permission.permission_id}">Eliminar</button>
+                      data-parent="${permission.parent_id || ''}" data-permission="edit-permission">Editar</button>
+              <button class="btn btn-sm btn-danger delete-permission" data-id="${permission.permission_id}" data-permission="delete-permission">Eliminar</button>
             </td>
           </tr>
         `;
@@ -1017,8 +1101,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         confirmDeletePermission(id);
                     });
                 });
-            }
-        );
+                applyPermissions();
+            });
     }
 
 
@@ -1067,6 +1151,17 @@ document.addEventListener('DOMContentLoaded', () => {
             modal.hide(); // Cerrar el modal de confirmación
         });
     }
+
+    function applyPermissions() {
+        let userHasPermission = sessionStorage.getItem('permissionsUser');
+        document.querySelectorAll('[data-permission]').forEach(element => {
+            const permissionCode = element.getAttribute('data-permission');
+            if (!userHasPermission.includes(permissionCode)) {
+                element.style.display = 'none';
+            }
+        });
+    }
+
 
 });
 

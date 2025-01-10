@@ -17,7 +17,7 @@ app.on('ready', () => {
     mainWindow.loadFile(path.join(__dirname, 'index.html'));
 
     // Abrir las herramientas de desarrollador automáticamente
-    //mainWindow.webContents.openDevTools();
+    mainWindow.webContents.openDevTools();
 });
 
 // Finalizar la aplicación cuando todas las ventanas se cierran
